@@ -47,7 +47,7 @@ func (c *Cache) Get(key string) *Item {
 	if item == nil {
 		return nil
 	}
-	if item.expires > time.Now().Unix() {
+	if item.expires > time.Now().UnixNano()/1e6 {
 		c.promote(item)
 	}
 	return item
@@ -77,7 +77,7 @@ func (c *Cache) Replace(key string, value interface{}) bool {
 	if item == nil {
 		return false
 	}
-	c.Set(key, value, item.TTL())
+	c.Set(key, value, item.PTTL())
 	return true
 }
 

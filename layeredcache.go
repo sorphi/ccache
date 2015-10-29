@@ -58,7 +58,7 @@ func (c *LayeredCache) Get(primary, secondary string) *Item {
 	if item == nil {
 		return nil
 	}
-	if item.expires > time.Now().Unix() {
+	if item.expires > time.Now().UnixNano()/1e6 {
 		c.promote(item)
 	}
 	return item
@@ -88,7 +88,7 @@ func (c *LayeredCache) Replace(primary, secondary string, value interface{}) boo
 	if item == nil {
 		return false
 	}
-	c.Set(primary, secondary, value, item.TTL())
+	c.Set(primary, secondary, value, item.PTTL())
 	return true
 }
 
