@@ -15,6 +15,7 @@ type TrackedItem interface {
 	Release()
 	Expired() bool
 	TTL() time.Duration
+	PTTL() time.Duration
 	Expires() time.Time
 	Extend(duration time.Duration)
 }
@@ -29,7 +30,11 @@ func (i *nilItem) Expired() bool {
 }
 
 func (i *nilItem) TTL() time.Duration {
-	return time.Minute
+	return -2
+}
+
+func (i *nilItem) PTTL() time.Duration {
+	return -2
 }
 
 func (i *nilItem) Expires() time.Time {
@@ -46,7 +51,7 @@ type Item struct {
 	group      string
 	promotions int32
 	refCount   int32
-	expires    int64
+	expires    int64 // expire at that time (unix milliseconds since epoch time)
 	size       int64
 	value      interface{}
 	element    *list.Element
@@ -85,19 +90,26 @@ func (i *Item) Release() {
 
 func (i *Item) Expired() bool {
 	expires := atomic.LoadInt64(&i.expires)
-	return expires < time.Now().Unix()
+	return expires < time.Now().UnixNano()/1e6
 }
 
+// TTL returns the amount of remaining time in seconds
 func (i *Item) TTL() time.Duration {
 	expires := atomic.LoadInt64(&i.expires)
-	return time.Second * time.Duration(expires-time.Now().Unix())
+	return time.Second * time.Duration(expires/1e3-time.Now().Unix())
+}
+
+// PTTL returns the amount of remaining time in milliseconds
+func (i *Item) PTTL() time.Duration {
+	expires := atomic.LoadInt64(&i.expires)
+	return time.Millisecond * time.Duration(expires-time.Now().UnixNano()/1e6)
 }
 
 func (i *Item) Expires() time.Time {
 	expires := atomic.LoadInt64(&i.expires)
-	return time.Unix(expires, 0)
+	return time.Unix(expires/1e3, (expires%1e3)*1e6)
 }
 
 func (i *Item) Extend(duration time.Duration) {
-	atomic.StoreInt64(&i.expires, time.Now().Add(duration).Unix())
+	atomic.StoreInt64(&i.expires, time.Now().Add(duration).UnixNano()/1e6)
 }
