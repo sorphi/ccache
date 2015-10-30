@@ -51,7 +51,7 @@ type Item struct {
 	group      string
 	promotions int32
 	refCount   int32
-	expires    int64 // expire at that time (unix milliseconds since epoch time)
+	expires    int64 // expire at that time (unix milliseconds since epoch time), -1 means no associated expire
 	size       int64
 	value      interface{}
 	element    *list.Element
@@ -90,23 +90,32 @@ func (i *Item) Release() {
 
 func (i *Item) Expired() bool {
 	expires := atomic.LoadInt64(&i.expires)
-	return expires < time.Now().UnixNano()/1e6
+	return expires != -1 && expires < time.Now().UnixNano()/1e6
 }
 
-// TTL returns the amount of remaining time in seconds
+// TTL returns the amount of remaining time in seconds, -1 means no associated expire
 func (i *Item) TTL() time.Duration {
 	expires := atomic.LoadInt64(&i.expires)
+	if expires == -1 {
+		return -1
+	}
 	return time.Second * time.Duration(expires/1e3-time.Now().Unix())
 }
 
-// PTTL returns the amount of remaining time in milliseconds
+// PTTL returns the amount of remaining time in milliseconds, -1 means no associated expire
 func (i *Item) PTTL() time.Duration {
 	expires := atomic.LoadInt64(&i.expires)
+	if expires == -1 {
+		return -1
+	}
 	return time.Millisecond * time.Duration(expires-time.Now().UnixNano()/1e6)
 }
 
 func (i *Item) Expires() time.Time {
 	expires := atomic.LoadInt64(&i.expires)
+	if expires == -1 {
+		return time.Time{}
+	}
 	return time.Unix(expires/1e3, (expires%1e3)*1e6)
 }
 

@@ -69,6 +69,11 @@ func (c *Cache) Set(key string, value interface{}, duration time.Duration) {
 	c.set(key, value, duration)
 }
 
+// Set the value in the cache as long as possible
+func (c *Cache) SetALAP(key string, value interface{}) {
+	c.set(key, value, -1)
+}
+
 // Replace the value if it exists, does not set if it doesn't.
 // Returns true if the item existed an was replaced, false otherwise.
 // Replace does not reset item's TTL
