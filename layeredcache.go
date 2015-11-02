@@ -49,6 +49,16 @@ func Layered(config *Configuration) *LayeredCache {
 	return c
 }
 
+// Count returns number of items in the cache.
+func (c *LayeredCache) Count() int {
+	return c.list.Len()
+}
+
+// Size returns total size of items in the cache.
+func (c *LayeredCache) Size() int64 {
+	return c.size
+}
+
 // Get an item from the cache. Returns nil if the item wasn't found.
 // This can return an expired item. Use item.Expired() to see if the item
 // is expired and item.TTL() to see how long until the item expires (which
