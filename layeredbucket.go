@@ -59,7 +59,10 @@ func (b *layeredBucket) deleteAll(primary string, deletables chan *Item) bool {
 	}
 	for key, item := range bucket.lookup {
 		delete(bucket.lookup, key)
-		deletables <- item
+		select {
+		case deletables <- item:
+		default: // no blocking, skip delete
+		}
 	}
 	return true
 }

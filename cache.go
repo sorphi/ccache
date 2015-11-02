@@ -113,9 +113,9 @@ func (c *Cache) Fetch(key string, duration time.Duration, fetch func() (interfac
 
 // Remove the item from the cache, return true if the item was present, false otherwise.
 func (c *Cache) Delete(key string) bool {
-	item := c.bucket(key).delete(key)
+	item := c.bucket(key).delete(key) //stop other GETs from getting it
 	if item != nil {
-		c.deletables <- item
+		c.deleteItem(item)
 		return true
 	}
 	return false
@@ -136,15 +136,18 @@ func (c *Cache) Stop() {
 	close(c.promotables)
 }
 
-func (c *Cache) deleteItem(bucket *bucket, item *Item) {
-	bucket.delete(item.key) //stop other GETs from getting it
-	c.deletables <- item
+func (c *Cache) deleteItem(item *Item) {
+	select {
+	case c.deletables <- item:
+	default:
+		// no blocking, skip delete
+	}
 }
 
 func (c *Cache) set(key string, value interface{}, duration time.Duration) *Item {
 	item, existing := c.bucket(key).set(key, value, duration)
 	if existing != nil {
-		c.deletables <- existing
+		c.deleteItem(existing)
 	}
 	c.promote(item)
 	return item
@@ -157,7 +160,11 @@ func (c *Cache) bucket(key string) *bucket {
 }
 
 func (c *Cache) promote(item *Item) {
-	c.promotables <- item
+	select {
+	case c.promotables <- item:
+	default:
+		// no blocking, skip promote
+	}
 }
 
 func (c *Cache) worker() {

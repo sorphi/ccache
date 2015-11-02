@@ -121,7 +121,7 @@ func (c *LayeredCache) Fetch(primary, secondary string, duration time.Duration, 
 func (c *LayeredCache) Delete(primary, secondary string) bool {
 	item := c.bucket(primary).delete(primary, secondary)
 	if item != nil {
-		c.deletables <- item
+		c.deleteItem(item)
 		return true
 	}
 	return false
@@ -144,7 +144,7 @@ func (c *LayeredCache) Clear() {
 func (c *LayeredCache) set(primary, secondary string, value interface{}, duration time.Duration) *Item {
 	item, existing := c.bucket(primary).set(primary, secondary, value, duration)
 	if existing != nil {
-		c.deletables <- existing
+		c.deleteItem(existing)
 	}
 	c.promote(item)
 	return item
@@ -157,7 +157,19 @@ func (c *LayeredCache) bucket(key string) *layeredBucket {
 }
 
 func (c *LayeredCache) promote(item *Item) {
-	c.promotables <- item
+	select {
+	case c.promotables <- item:
+	default:
+		// no blocking, skip promote
+	}
+}
+
+func (c *LayeredCache) deleteItem(item *Item) {
+	select {
+	case c.deletables <- item:
+	default:
+		// no blocking, skip delete
+	}
 }
 
 func (c *LayeredCache) worker() {
